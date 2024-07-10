@@ -74,7 +74,7 @@ public class UserServlet extends HttpServlet {
             resp.setContentType("application/json"); // to get response as a json
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST); //set status of response
             mapper.writeValue(resp.getWriter(),
-                    new ErrorResponse(400, "Bad Request",
+                    new ErrorResponse(req.getRequestURI(), 400, "Bad Request",
                             "Validation failed", constraintViolations)); //write the ErrorResponse Object into response object
             return;
         }
