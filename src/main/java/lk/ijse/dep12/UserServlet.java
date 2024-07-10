@@ -30,6 +30,15 @@ public class UserServlet extends HttpServlet {
     private DataSource pool;
 
     private final ObjectMapper mapper = new ObjectMapper();
+    //Validator and ValidatorFactory are thread safe
+    private final ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory();
+    private final Validator validator = validatorFactory.getValidator();
+
+    @Override
+    public void destroy() {
+        //close validator factory when servlet is destroyed
+        validatorFactory.close();
+    }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -43,10 +52,11 @@ public class UserServlet extends HttpServlet {
         User user = new User(null, name, email, password, picture);
 
         //Validate created user
-        try (ValidatorFactory vf = Validation.buildDefaultValidatorFactory()) {
-            Validator validator = vf.getValidator();
-            Set<ConstraintViolation<User>> constraintViolations = validator.validate(user);
-            if (!constraintViolations.isEmpty()) {
+        //try (ValidatorFactory vf = Validation.buildDefaultValidatorFactory()) {
+        // no point of creating a validator factory for each request
+        // Validator validator = vf.getValidator();
+        Set<ConstraintViolation<User>> constraintViolations = validator.validate(user);
+        if (!constraintViolations.isEmpty()) {
 //                //put all constraint violations to a map
 //                HashMap<String, String> errors = new HashMap<>();
 //                constraintViolations.forEach(violation -> errors.put(violation.getPropertyPath().toString(),
@@ -59,16 +69,16 @@ public class UserServlet extends HttpServlet {
 //                errorMap.put("message", "Validation failed");
 //                errorMap.put("errors", errors);
 
-                /* To replace above complex code, we can use a custom Error Response Object*/
+            /* To replace above complex code, we can use a custom Error Response Object*/
 
-                resp.setContentType("application/json"); // to get response as a json
-                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST); //set status of response
-                mapper.writeValue(resp.getWriter(),
-                        new ErrorResponse(400,"Bad Request",
-                                "Validation failed",constraintViolations)); //write the ErrorResponse Object into response object
-                return;
-            }
+            resp.setContentType("application/json"); // to get response as a json
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST); //set status of response
+            mapper.writeValue(resp.getWriter(),
+                    new ErrorResponse(400, "Bad Request",
+                            "Validation failed", constraintViolations)); //write the ErrorResponse Object into response object
+            return;
         }
+        //}
 
         try (Connection connection = pool.getConnection()) {
             PreparedStatement stm = connection.prepareStatement("""
